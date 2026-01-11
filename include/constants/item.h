@@ -1593,7 +1593,7 @@
 #define ITEM_EXP_CHARM                    1587
 #define ITEM_ARMORITE_ORE                 1588
 #define ITEM_MARK_CHARM                   1589
-#define ITEM_REINS_OF_UNITY_FUSE          1590
+#define ITEM_REINS_OF_UNITY               1590
 #define ITEM_REINS_OF_UNITY_UNFUSE        1591
 #define ITEM_GALARICA_WREATH              1592
 #define ITEM_LEGENDARY_CLUE_1             1593

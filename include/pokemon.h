@@ -1900,4 +1900,9 @@ u8 LONG_CALL GetMoveMaxPP(u16 moveId, u8 ppUps);
 
 void LONG_CALL ApplyMonMoodModifier(struct PartyPokemon *mon, int modifierId);
 
+struct ItemCheckParam; // Declaração amigável para evitar erros de struct
+u32 ItemUsePartyMenu_ReinsOfUnity(struct ItemCheckParam *param);
+
+u32 LONG_CALL CanUseReinsOfUnityGrabSteedPos(struct PartyPokemon *pp, struct Party *party);
+
 #endif

@@ -905,6 +905,56 @@ u32 LONG_CALL CanUseDNASplicersGrabSplicerPos(struct PartyPokemon *pp, struct Pa
     return 6;
 }
 
+#define SPECTRIER_MASK (0x80) // Usaremos o bit 0x80 para identificar o Spectrier
+#define JUST_STEED_POS_MASK (0x7F)
+
+/**
+ * @brief Verifica se as Reins of Unity podem ser usadas e retorna a posição do cavalo.
+ *
+ * @param pp Pokémon selecionado (Calyrex)
+ * @param party Party do jogador
+ * @return Posição na party or'd com SPECTRIER_MASK se for Spectrier. Retorna 6 se inválido.
+ */
+u32 LONG_CALL CanUseReinsOfUnityGrabSteedPos(struct PartyPokemon *pp, struct Party *party)
+{
+    u32 species = GetMonData(pp, MON_DATA_SPECIES, NULL);
+    u32 form_no = GetMonData(pp, MON_DATA_FORM, NULL);
+
+    if (species != SPECIES_CALYREX) // Só funciona se o selecionado for Calyrex
+    {
+        return 6;
+    }
+
+    // Se o Calyrex NÃO estiver na forma base (já está fundido), procuramos um slot vazio para devolver o cavalo
+    if (form_no != 0) 
+    {
+        for (s32 i = 0; i < 6; i++) 
+        {
+            struct PartyPokemon *currentmon = Party_GetMonByIndex(party, i);
+            u32 species2 = GetMonData(currentmon, MON_DATA_SPECIES, NULL);
+            
+            if (species2 == 0) // Encontrou slot vazio
+                return i;
+        }
+    }
+    // Se o Calyrex ESTIVER na forma base, procuramos um dos cavalos na party
+    else 
+    {
+        for (s32 i = 0; i < party->count; i++)
+        {
+            struct PartyPokemon *currentmon = Party_GetMonByIndex(party, i);
+            u32 species2 = GetMonData(currentmon, MON_DATA_SPECIES, NULL);
+
+            if (species2 == SPECIES_GLASTRIER || species2 == SPECIES_SPECTRIER)
+            {
+                // Se for Spectrier, aplica a MASK, senão (Glastrier) retorna apenas o índice
+                return ((species2 == SPECIES_SPECTRIER ? SPECTRIER_MASK : 0) | i);
+            }
+        }
+    }
+
+    return 6; // Nada encontrado
+}
 
 u32 CanUseAbilityCapsule(struct PartyPokemon *pp)
 {
@@ -920,7 +970,6 @@ u32 CanUseAbilityCapsule(struct PartyPokemon *pp)
     // ability capsule can only be used if ability2 is nonzero and is not equal to ability1
     return (ability2 != 0 && ability1 != ability2);
 }
-
 
 u32 CanUseAbilityPatch(struct PartyPokemon *pp)
 {
@@ -1075,6 +1124,67 @@ u32 LONG_CALL UseItemMonAttrChangeCheck(struct PLIST_WORK *wk, void *dat)
         return TRUE;
     }
 #endif
+u32 reins_pos = CanUseReinsOfUnityGrabSteedPos(pp, wk->dat->pp);
+u32 isSpectrier = reins_pos & SPECTRIER_MASK;
+reins_pos &= JUST_STEED_POS_MASK;// Lógica para Calyrex e Reins of Unity
+
+    if (wk->dat->item == ITEM_REINS_OF_UNITY && (reins_pos < 6))
+    {
+        void *saveData = SaveBlock2_get();
+        struct SAVE_MISC_DATA *saveMiscData = Sav2_Misc_get(saveData);
+
+        // DESFUSÃO: Calyrex já está em uma forma fundida (1 ou 2)
+        if (GetMonData(pp, MON_DATA_FORM, NULL) != 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY])
+        {
+            u32 currForm = GetMonData(pp, MON_DATA_FORM, NULL);
+
+            // Recupera o cavalo do save e coloca de volta na party
+            struct PartyPokemon *steed = Party_GetMonByIndex(wk->dat->pp, reins_pos);
+            *steed = saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY];
+            partyMenuSignal = 1;
+
+            // Limpa o slot do save
+            memset((u8 *)&saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY], 0, sizeof(struct PartyPokemon));
+            saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 0;
+
+            wk->dat->after_mons = 0;
+
+            // Volta para a forma base e troca os golpes
+            ChangePartyPokemonToForm(pp, 0);
+            
+            // Troca os golpes característicos (Ajuste os nomes dos moves conforme sua engine)
+            SwapPartyPokemonMove(pp, currForm == 1 ? MOVE_GLACIAL_LANCE : MOVE_ASTRAL_BARRAGE, MOVE_CONFUSION); // Exemplo
+        }
+        // FUSÃO: Calyrex está na forma base e o slot do save está vazio
+        else if (saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] == 0)
+        {
+            // Guarda o cavalo no save
+            saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY] = *Party_GetMonByIndex(wk->dat->pp, reins_pos);
+            
+            // Remove o cavalo da party
+            PokeParty_Delete(wk->dat->pp, reins_pos);
+            saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 1;
+
+            if (reins_pos < wk->pos)
+            {
+                wk->pos--;
+                pp = Party_GetMonByIndex(wk->dat->pp, wk->pos);
+            }
+
+            // Define a forma baseada no cavalo encontrado (1 = Ice, 2 = Shadow)
+            wk->dat->after_mons = (isSpectrier) ? 2 : 1;
+
+            ChangePartyPokemonToForm(pp, wk->dat->after_mons);
+            
+            // Aprende o golpe novo ao fundir
+            SwapPartyPokemonMove(pp, MOVE_CONFUSION, wk->dat->after_mons == 1 ? MOVE_GLACIAL_LANCE : MOVE_ASTRAL_BARRAGE);
+        }
+        else { return FALSE; }
+
+        sys_FreeMemoryEz(dat);
+        PokeList_FormDemoOverlayLoad(wk);
+        return TRUE;
+    }
 
     // handle ability capsule
 

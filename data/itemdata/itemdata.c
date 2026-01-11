@@ -2,8 +2,7 @@
 #include "../../include/item.h"
 #include "../../include/constants/hold_item_effects.h"
 #include "../../include/constants/item.h"
-#include "../../include/battle.h"
-
+#include "../../include/battle.h"   
 
 u32 __size = sizeof(ITEMDATA);
 
@@ -103361,7 +103360,7 @@ const ITEMDATA __data[] =
     },
 },
 
-[ITEM_REINS_OF_UNITY_FUSE] =
+[ITEM_REINS_OF_UNITY] =
 {
     ITEM_PRICE(0),
     .holdEffect = 0,
@@ -103372,12 +103371,12 @@ const ITEMDATA __data[] =
     .naturalGiftPower = 0,
     .naturalGiftType = 31,
     .prevent_toss = TRUE,
-    .selectable = FALSE,
+    .selectable = TRUE,
     .fieldPocket = POCKET_KEY_ITEMS,
     .battlePocket = BATTLE_POCKET_NONE,
-    .fieldUseFunc = 0,
+    .fieldUseFunc = 35,
     .battleUseFunc = 0,
-    .partyUse = 0,
+    .partyUse = 1,
     .partyUseParam = {
         .slp_heal = FALSE,
         .psn_heal = FALSE,
