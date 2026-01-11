@@ -627,7 +627,7 @@ struct PLIST_DATA
                  u8 in_max:4;
     /* 0x33+4 */ u8 in_lv;
     /* 0x34+4 */ s32 lv_cnt;
-    /* 0x38+4 */ u16 after_mons;
+    /* 0x38+4 */ u16 after_mons; // species
     /* 0x3C+4 */ s32 shinka_cond;
 };
 
@@ -656,7 +656,7 @@ struct PLIST_WORK
     /* 0x654 */ struct PLIST_DATA *dat;
     /* 0x658 */ void* /*SpriteRenderer **/ spriteRenderer;
     /* 0x65C */ void* /*SpriteGfxHandler **/ spriteGfxHandler;
-    /* 0x660 */ void* /*Sprite **/ sprites[_PARTY_MENU_SPRITE_ID_MAX]; // 0x660
+    /* 0x660 */ void* /*Sprite **/ sprites[_PARTY_MENU_SPRITE_ID_MAX]; // 0x660*/
     /* 0x6D4 */ u8 padding_x6D4[0xC65-0x660-0x74];
     u8 pos;
 };
@@ -1650,6 +1650,14 @@ BOOL LONG_CALL HandleBoxPokemonFormeChanges(struct BoxPokemon* bp);
 BOOL LONG_CALL CanUseRevealGlass(struct PartyPokemon *pp);
 
 /**
+ *  @brief check if a rotom catalog can be used on a PartyPokemon
+ *
+ *  @param pp PartyPokemon to check reveal glass against
+ *  @return TRUE if rotom catalog can be used; FALSE otherwise
+ */
+BOOL CanUseRotomCatalog(struct PartyPokemon *pp);
+
+/**
  *  @brief check if DNA splicers can be used, return position in party if so
  *
  *  @param pp PartyPokemon to check for
@@ -1904,5 +1912,8 @@ struct ItemCheckParam; // Declaração amigável para evitar erros de struct
 u32 ItemUsePartyMenu_ReinsOfUnity(struct ItemCheckParam *param);
 
 u32 LONG_CALL CanUseReinsOfUnityGrabSteedPos(struct PartyPokemon *pp, struct Party *party);
+BOOL Mon_UpdateRotomForm(struct PartyPokemon *mon, int form, int defaultSlot);
+
+BOOL LONG_CALL CanUseItemOnMonInParty(struct Party *party, u16 itemID, s32 partyIdx, s32 moveIdx, u32 heapID);
 
 #endif
