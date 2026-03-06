@@ -1,3 +1,4 @@
+
 #include "../include/types.h"
 #include "../include/bag.h"
 #include "../include/battle.h"
@@ -924,42 +925,44 @@ u32 LONG_CALL CanUseDNASplicersGrabSplicerPos(struct PartyPokemon *pp, struct Pa
 u32 LONG_CALL CanUseReinsOfUnityGrabSteedPos(struct PartyPokemon *pp, struct Party *party)
 {
     u32 species = GetMonData(pp, MON_DATA_SPECIES, NULL);
-    u32 form_no = GetMonData(pp, MON_DATA_FORM, NULL);
+    u32 form    = GetMonData(pp, MON_DATA_FORM, NULL);
 
-    if (species != SPECIES_CALYREX) // Só funciona se o selecionado for Calyrex
-    {
-        return 6;
-    }
+    if (species != SPECIES_CALYREX)
+        return 6; // Não é Calyrex
 
-    // Se o Calyrex NÃO estiver na forma base (já está fundido), procuramos um slot vazio para devolver o cavalo
-    if (form_no != 0) 
+
+    if (form != 0)
     {
-        for (s32 i = 0; i < 6; i++) 
+        // Calyrex já está fundido (form 1 = Ice Rider, form 2 = Shadow Rider) -> desfundir
+        // Precisa de um slot vazio para devolver o cavalo
+        if (party->count >= 6) return 6;
+
+        for (s32 i = 0; i < 6; i++)
         {
             struct PartyPokemon *currentmon = Party_GetMonByIndex(party, i);
             u32 species2 = GetMonData(currentmon, MON_DATA_SPECIES, NULL);
-            
-            if (species2 == 0) // Encontrou slot vazio
+
+            if (species2 == 0) // slot vazio
                 return i;
         }
     }
-    // Se o Calyrex ESTIVER na forma base, procuramos um dos cavalos na party
-    else 
+    else
     {
-        for (s32 i = 0; i < party->count; i++)
+        // Calyrex forma base (form 0) -> fundir: procura o cavalo na party
+
+        for (s32 i = 0; i < 6; i++)
         {
             struct PartyPokemon *currentmon = Party_GetMonByIndex(party, i);
             u32 species2 = GetMonData(currentmon, MON_DATA_SPECIES, NULL);
 
             if (species2 == SPECIES_GLASTRIER || species2 == SPECIES_SPECTRIER)
             {
-                // Se for Spectrier, aplica a MASK, senão (Glastrier) retorna apenas o índice
                 return ((species2 == SPECIES_SPECTRIER ? SPECTRIER_MASK : 0) | i);
             }
         }
     }
 
-    return 6; // Nada encontrado
+    return 6; // nenhum cavalo encontrado / sem espaco
 }
 
 u32 CanUseAbilityCapsule(struct PartyPokemon *pp)
@@ -1029,6 +1032,16 @@ u32 LONG_CALL UseItemMonAttrChangeCheck(struct PartyMenu *wk, void *dat)
 {
     struct PartyPokemon *pp = Party_GetMonByIndex(wk->args->party, wk->partyMonIndex);
     partyMenuSignal = 0; // ensure it is 0 before potentially queuing up a different message
+
+#ifdef DEBUG
+    {
+        u32 item = wk->args->itemId;
+        u32 sp = GetMonData(pp, MON_DATA_SPECIES, NULL);
+        u32 form = GetMonData(pp, MON_DATA_FORM, NULL);
+        debug_printf("[UseItem] item=%d species=%d form=%d partyIndex=%d\n",
+                     item, sp, form, wk->partyMonIndex);
+    }
+#endif
 
     // handle shaymin
 
@@ -1135,22 +1148,74 @@ u32 LONG_CALL UseItemMonAttrChangeCheck(struct PartyMenu *wk, void *dat)
         return TRUE;
     }
 #endif
-u32 reins_pos = CanUseReinsOfUnityGrabSteedPos(pp, wk->dat->pp);
-u32 isSpectrier = reins_pos & SPECTRIER_MASK;
-reins_pos &= JUST_STEED_POS_MASK;// Lógica para Calyrex e Reins of Unity
 
-    if (wk->dat->item == ITEM_REINS_OF_UNITY && (reins_pos < 6))
+    // Lógica para Calyrex e Reins of Unity
+    // Note que troquei wk->dat->pp para wk->args->party para manter a consistência
+       u32 selectedSpecies = GetMonData(pp, MON_DATA_SPECIES, NULL);
+   
+    u32 reins_pos = 6;
+    u32 isSpectrier = 0;
+   
+    // Only check for Calyrex (base or fused) and steed if the selected Pokémon is Calyrex
+    if (selectedSpecies == SPECIES_CALYREX
+     || selectedSpecies == SPECIES_CALYREX_ICE_RIDER
+     || selectedSpecies == SPECIES_CALYREX_SHADOW_RIDER)
+       {
+        reins_pos = CanUseReinsOfUnityGrabSteedPos(pp, wk->args->party);
+        isSpectrier = reins_pos & SPECTRIER_MASK;
+        reins_pos &= JUST_STEED_POS_MASK;
+
+        #ifdef DEBUG
+        debug_printf("[Reins] selectedSpecies=%d reins_pos=%d isSpectrier=%d\n", selectedSpecies, reins_pos, isSpectrier);
+        #endif
+
+           /*
+            * Fallback: if the helper somehow failed (returned >=6), perform a
+            * brute‑force scan of all slots to guarantee a hit.  This covers odd
+            * cases where party->count/slot bookkeeping is corrupted or the
+            * helper isn't executed for some reason.  It also means the item will
+            * work as long as the player has a Calyrex and a horse somewhere in
+            * the party, regardless of any invariants.
+            */
+           if (reins_pos >= 6)
+           {
+               for (s32 i = 0; i < 6; i++)
+               {
+                   struct PartyPokemon *currentmon = Party_GetMonByIndex(wk->args->party, i);
+                   u32 species2 = GetMonData(currentmon, MON_DATA_SPECIES, NULL);
+                   if (species2 == SPECIES_GLASTRIER || species2 == SPECIES_SPECTRIER)
+                   {
+                       reins_pos = i;
+                       isSpectrier = (species2 == SPECIES_SPECTRIER) ? SPECTRIER_MASK : 0;
+                       break;
+                   }
+               }
+           }
+       }
+
+    // item may be fuse or unfuse variant; both should trigger the same logic
+    if ((wk->args->itemId == ITEM_REINS_OF_UNITY || wk->args->itemId == ITEM_REINS_OF_UNITY_UNFUSE) && (reins_pos < 6))
     {
         void *saveData = SaveBlock2_get();
         struct SAVE_MISC_DATA *saveMiscData = Sav2_Misc_get(saveData);
 
-        // DESFUSÃO: Calyrex já está em uma forma fundida (1 ou 2)
-        if (GetMonData(pp, MON_DATA_FORM, NULL) != 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY])
-        {
-            u32 currForm = GetMonData(pp, MON_DATA_FORM, NULL);
+#ifdef DEBUG
+        debug_printf("[Reins] currForm=%d storedFlag=%d\n",
+                     GetMonData(pp, MON_DATA_FORM, NULL),
+                     saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY]);
+#endif
 
+        u32 currForm = GetMonData(pp, MON_DATA_FORM, NULL);
+
+        // DESFUSÃO: Calyrex já está em uma forma fundida (Form 1 ou 2)
+        // Note: we don't need to check selectedSpecies here because the
+        // surrounding logic already ensures we're dealing with a Calyrex
+        // (base or fused).  The form number is sufficient to distinguish
+        // base (0) from fused (1/2).
+        if (currForm != 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY])
+        {
             // Recupera o cavalo do save e coloca de volta na party
-            struct PartyPokemon *steed = Party_GetMonByIndex(wk->dat->pp, reins_pos);
+            struct PartyPokemon *steed = Party_GetMonByIndex(wk->args->party, reins_pos);
             *steed = saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY];
             partyMenuSignal = 1;
 
@@ -1158,57 +1223,47 @@ reins_pos &= JUST_STEED_POS_MASK;// Lógica para Calyrex e Reins of Unity
             memset((u8 *)&saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY], 0, sizeof(struct PartyPokemon));
             saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 0;
 
-            wk->dat->after_mons = 0;
+            wk->args->species = 0; // Define que a forma voltará para 0
 
-            // Volta para a forma base e troca os golpes
+            // Volta para a forma base
             ChangePartyPokemonToForm(pp, 0);
-            
-            // Troca os golpes característicos (Ajuste os nomes dos moves conforme sua engine)
-            SwapPartyPokemonMove(pp, currForm == 1 ? MOVE_GLACIAL_LANCE : MOVE_ASTRAL_BARRAGE, MOVE_CONFUSION); // Exemplo
+            // Desfusão: restaura o golpe assinatura → golpe base do Calyrex
+            // TODO: troque MOVE_PSYSHOCK pelo golpe desejado se necessário
+            SwapPartyPokemonMove(pp, MOVE_GLACIAL_LANCE, MOVE_PSYSHOCK);
+            SwapPartyPokemonMove(pp, MOVE_ASTRAL_BARRAGE, MOVE_PSYSHOCK);
         }
         // FUSÃO: Calyrex está na forma base e o slot do save está vazio
-        else if (saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] == 0)
+        else if (currForm == 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] == 0)
         {
             // Guarda o cavalo no save
-            saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY] = *Party_GetMonByIndex(wk->dat->pp, reins_pos);
-            
+            saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY] = *Party_GetMonByIndex(wk->args->party, reins_pos);
+
             // Remove o cavalo da party
-            PokeParty_Delete(wk->dat->pp, reins_pos);
+            PokeParty_Delete(wk->args->party, reins_pos);
             saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 1;
 
-            if (reins_pos < wk->pos)
+            // Ajusta o índice se o cavalo removido estava antes do Calyrex na party
+            if (reins_pos < wk->partyMonIndex)
             {
-                wk->pos--;
-                pp = Party_GetMonByIndex(wk->dat->pp, wk->pos);
+                wk->partyMonIndex--;
+                pp = Party_GetMonByIndex(wk->args->party, wk->partyMonIndex);
             }
 
-            // Define a forma baseada no cavalo encontrado (1 = Ice, 2 = Shadow)
-            wk->dat->after_mons = (isSpectrier) ? 2 : 1;
+            // Define a forma (1 = Ice Rider com Glastrier, 2 = Shadow Rider com Spectrier)
+            wk->args->species = (isSpectrier) ? 2 : 1;
 
-            ChangePartyPokemonToForm(pp, wk->dat->after_mons);
-            
-            // Aprende o golpe novo ao fundir
-            SwapPartyPokemonMove(pp, MOVE_CONFUSION, wk->dat->after_mons == 1 ? MOVE_GLACIAL_LANCE : MOVE_ASTRAL_BARRAGE);
+            ChangePartyPokemonToForm(pp, wk->args->species);
+            // Fusão: substitui golpe base do Calyrex pelo golpe assinatura
+            // TODO: troque MOVE_PSYSHOCK pelo golpe desejado se necessário
+            if (isSpectrier)
+                SwapPartyPokemonMove(pp, MOVE_PSYSHOCK, MOVE_ASTRAL_BARRAGE);
+            else
+                SwapPartyPokemonMove(pp, MOVE_PSYSHOCK, MOVE_GLACIAL_LANCE);
         }
         else { return FALSE; }
 
         sys_FreeMemoryEz(dat);
         PokeList_FormDemoOverlayLoad(wk);
-        return TRUE;
-    }
-
-    // handle ability capsule
-
-    if (wk->args->itemId == ITEM_ABILITY_CAPSULE && CanUseAbilityCapsule(pp) == TRUE)
-    {
-        void *bag = Sav2_Bag_get(SaveBlock2_get());
-        partyMenuSignal = 193; // signal to change the message to this index
-        wk->args->species = GetMonData(pp, MON_DATA_FORM, NULL); // no form change
-        sys_FreeMemoryEz(dat);
-        PokeList_FormDemoOverlayLoad(wk);
-        TOGGLE_MON_SWAP_ABILITY_SLOT_BIT(pp)
-        ResetPartyPokemonAbility(pp);
-        Bag_TakeItem(bag, ITEM_ABILITY_CAPSULE, 1, 11);
         return TRUE;
     }
 
@@ -2686,6 +2741,25 @@ void LONG_CALL correct_zacian_zamazenta_kyurem_moves_for_form(struct PartyPokemo
                     break;
                 case 1:
                     SwapPartyPokemonMove(param, MOVE_IRON_HEAD, MOVE_BEHEMOTH_BASH);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case SPECIES_CALYREX:
+            switch (expected_form) {
+                case 0: // Calyrex base: restaura PSYSHOCK no lugar dos golpes assinatura
+                    // TODO: troque MOVE_PSYSHOCK pelo golpe desejado se necessário
+                    SwapPartyPokemonMove(param, MOVE_GLACIAL_LANCE, MOVE_PSYSHOCK);
+                    SwapPartyPokemonMove(param, MOVE_ASTRAL_BARRAGE, MOVE_PSYSHOCK);
+                    break;
+                case 1: // Ice Rider (com Glastrier): PSYSHOCK → GLACIAL_LANCE
+                    // TODO: troque MOVE_PSYSHOCK pelo golpe desejado se necessário
+                    SwapPartyPokemonMove(param, MOVE_PSYSHOCK, MOVE_GLACIAL_LANCE);
+                    break;
+                case 2: // Shadow Rider (com Spectrier): PSYSHOCK → ASTRAL_BARRAGE
+                    // TODO: troque MOVE_PSYSHOCK pelo golpe desejado se necessário
+                    SwapPartyPokemonMove(param, MOVE_PSYSHOCK, MOVE_ASTRAL_BARRAGE);
                     break;
                 default:
                     break;

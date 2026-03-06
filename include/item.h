@@ -278,6 +278,16 @@ void LONG_CALL THUMB_FUNC ItemMenuUseFunc_Gracidea(struct ItemMenuUseData *data,
 BOOL LONG_CALL THUMB_FUNC ItemFieldUseFunc_Gracidea(struct ItemFieldUseData *data);
 void LONG_CALL THUMB_FUNC ItemMenuUseFunc_VSRecorder(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
 BOOL LONG_CALL THUMB_FUNC ItemFieldUseFunc_VSRecorder(struct ItemFieldUseData *data);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_RevealGlass(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+BOOL LONG_CALL THUMB_FUNC ItemFieldUseFunc_RevealGlass(struct ItemFieldUseData *data);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_DNASplicers(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+BOOL LONG_CALL THUMB_FUNC ItemFieldUseFunc_DNASplicers(struct ItemFieldUseData *data);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_AbilityCapsule(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_Mint(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_Nectar(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_ReinsOfUnity(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
+BOOL LONG_CALL THUMB_FUNC ItemFieldUseFunc_ReinsOfUnity(struct ItemFieldUseData *data);
+void LONG_CALL THUMB_FUNC ItemMenuUseFunc_RotomCatalog(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2);
 void *LONG_CALL sub_0203FAE8(FieldSystem *fsys, u32 heapId, u32 itemId);
 void LONG_CALL sub_0203C8F0(struct BagViewAppWork *env, u32 task); // task is a func ptr
 void LONG_CALL RegisteredItem_CreateGoToAppTask(struct ItemFieldUseData *data, FieldApplicationWorkCtor ctorTask, BOOL something);

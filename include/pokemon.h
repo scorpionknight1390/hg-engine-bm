@@ -1620,6 +1620,7 @@ BOOL LONG_CALL Mon_CanUseGracidea(struct PartyPokemon *mon);
  *  @return party position of pokémon that can be stored by the DNA splicers or'd with RESHIRAM_MASK if reshiram is the first pokémon found
  */
 u32 LONG_CALL CanUseDNASplicersGrabSplicerPos(struct PartyPokemon *pp, struct Party *party);
+u32 LONG_CALL CanUseReinsOfUnityGrabSteedPos(struct PartyPokemon *pp, struct Party *party);
 
 /**
  *  @brief check if a rotom catalog can be used on a PartyPokemon

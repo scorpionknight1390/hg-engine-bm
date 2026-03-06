@@ -418,7 +418,7 @@ const struct ItemUseFuncDat sItemFieldUseFuncs[] = {
     { ItemMenuUseFunc_AbilityCapsule, NULL, NULL },
     { ItemMenuUseFunc_Mint, NULL, NULL },
     { ItemMenuUseFunc_Nectar, NULL, NULL }, 
-    { ItemMenuUseFunc_ReinsOfUnity, ItemFieldUseFunc_ReinsOfUnity_Menu, NULL },
+    { ItemMenuUseFunc_ReinsOfUnity, ItemFieldUseFunc_ReinsOfUnity, NULL },
     { ItemMenuUseFunc_RotomCatalog, NULL, NULL },
 };
 
@@ -678,16 +678,25 @@ void ItemMenuUseFunc_Nectar(struct ItemMenuUseData *data, const struct ItemCheck
     sub_0203C8F0(env, 0x0203CA9C | 1);
 }
 
-void ItemMenuUseFunc_ReinsOfUnity(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2 UNUSED)
+/*void ItemMenuUseFunc_ReinsOfUnity(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2 UNUSED)
 {
     FieldSystem *fieldSystem = data->taskManager->fieldSystem;
     struct BagViewAppWork *env = data->taskManager->env;
-    // O ITEM_REINS_OF_UNITY aqui diz à party para se preparar para este item
+    env->atexit_TaskEnv = sub_0203FAE8(fieldSystem, HEAPID_WORLD, ITEM_REINS_OF_UNITY);
+    sub_0203C8F0(env, 0x0203CA9C | 1);
+}
+*/
+void ItemMenuUseFunc_ReinsOfUnity(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2 UNUSED)
+{
+    // TESTE: Forçar a função a sempre executar
+    // Se isso funcionar, sabemos que o problema está no fluxo normal
+    FieldSystem *fieldSystem = data->taskManager->fieldSystem;
+    struct BagViewAppWork *env = data->taskManager->env;
     env->atexit_TaskEnv = sub_0203FAE8(fieldSystem, HEAPID_WORLD, ITEM_REINS_OF_UNITY);
     sub_0203C8F0(env, 0x0203CA9C | 1);
 }
 
-BOOL ItemFieldUseFunc_ReinsOfUnity_Menu(struct ItemFieldUseData *data)
+BOOL ItemFieldUseFunc_ReinsOfUnity(struct ItemFieldUseData *data)
 {
     RegisteredItem_CreateGoToAppTask(data, (FieldApplicationWorkCtor)_CreateReinsOfUnityWork, FALSE);
     return TRUE;
@@ -697,6 +706,7 @@ void *_CreateReinsOfUnityWork(FieldSystem *fieldSystem)
 {
     return sub_0203FAE8(fieldSystem, HEAPID_WORLD, ITEM_REINS_OF_UNITY);
 }
+
 void ItemMenuUseFunc_RotomCatalog(struct ItemMenuUseData *data, const struct ItemCheckUseData *dat2 UNUSED)
 {
 

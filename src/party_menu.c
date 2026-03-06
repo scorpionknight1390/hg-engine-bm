@@ -4,12 +4,18 @@
 #include "../include/party_menu.h"
 #include "../include/pokemon.h"
 #include "../include/message.h"
+#include "../include/save.h"
 #include "../include/types.h"
 #include "../include/window.h"
 #include "../include/constants/file.h"
 #include "../include/constants/item.h"
 #include "../include/constants/moves.h"
 #include "../include/constants/species.h"
+
+#define REINS_SPECTRIER_MASK    0x80
+#define REINS_STEED_POS_MASK    0x7F
+
+extern u32 partyMenuSignal;
 
 extern const u16 sButtonFrameTileOffsets[];
 extern const u8 sButtonRects[][4];
@@ -305,6 +311,60 @@ int LONG_CALL PartyMenu_HandleUseItemOnMon(struct PartyMenu *partyMenu)
         PartyMenu_SelectMoveForPpRestoreOrPpUp(partyMenu, 1);
         return PARTY_MENU_STATE_SELECT_MOVE;
     }
+
+#ifdef ALLOW_SAVE_CHANGES
+    if (partyMenu->args->itemId == ITEM_REINS_OF_UNITY || partyMenu->args->itemId == ITEM_REINS_OF_UNITY_UNFUSE) {
+        struct PartyPokemon *calyrex = Party_GetMonByIndex(partyMenu->args->party, partyMenu->partyMonIndex);
+        if (GetMonData(calyrex, MON_DATA_SPECIES, NULL) == SPECIES_CALYREX) {
+            u32 currForm  = GetMonData(calyrex, MON_DATA_FORM, NULL);
+            u32 reins_pos = CanUseReinsOfUnityGrabSteedPos(calyrex, partyMenu->args->party);
+            u32 isSpectrier = reins_pos & REINS_SPECTRIER_MASK;
+            reins_pos &= REINS_STEED_POS_MASK;
+
+            void *saveData = SaveBlock2_get();
+            struct SAVE_MISC_DATA *saveMiscData = Sav2_Misc_get(saveData);
+
+            if (currForm != 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY]) {
+                // Defuse: restore steed to party slot
+                struct PartyPokemon *steed = Party_GetMonByIndex(partyMenu->args->party, reins_pos);
+                *steed = saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY];
+                memset((u8 *)&saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY], 0, sizeof(struct PartyPokemon));
+                saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 0;
+                partyMenuSignal = 1;
+                SwapPartyPokemonMove(calyrex, MOVE_GLACIAL_LANCE, MOVE_PSYSHOCK);
+                SwapPartyPokemonMove(calyrex, MOVE_ASTRAL_BARRAGE, MOVE_PSYSHOCK);
+                ChangePartyPokemonToForm(calyrex, 0);
+                partyMenu->args->species = SPECIES_CALYREX;
+                sys_FreeMemoryEz(itemData);
+                PartyMenu_FormChangeScene_Begin(partyMenu);
+                return PARTY_MENU_STATE_FORM_CHANGE_ANIM;
+            } else if (currForm == 0 && saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] == 0 && reins_pos < 6) {
+                // Fuse: store steed, remove from party, change form
+                saveMiscData->storedMons[STORED_MONS_REINS_OF_UNITY] = *Party_GetMonByIndex(partyMenu->args->party, reins_pos);
+                PokeParty_Delete(partyMenu->args->party, reins_pos);
+                saveMiscData->isMonStored[STORED_MONS_REINS_OF_UNITY] = 1;
+                if (reins_pos < partyMenu->partyMonIndex) {
+                    partyMenu->partyMonIndex--;
+                    calyrex = Party_GetMonByIndex(partyMenu->args->party, partyMenu->partyMonIndex);
+                }
+                if (isSpectrier) {
+                    SwapPartyPokemonMove(calyrex, MOVE_PSYSHOCK, MOVE_ASTRAL_BARRAGE);
+                    ChangePartyPokemonToForm(calyrex, 2);
+                    partyMenu->args->species = SPECIES_CALYREX_SHADOW_RIDER;
+                } else {
+                    SwapPartyPokemonMove(calyrex, MOVE_PSYSHOCK, MOVE_GLACIAL_LANCE);
+                    ChangePartyPokemonToForm(calyrex, 1);
+                    partyMenu->args->species = SPECIES_CALYREX_ICE_RIDER;
+                }
+                sys_FreeMemoryEz(itemData);
+                PartyMenu_FormChangeScene_Begin(partyMenu);
+                return PARTY_MENU_STATE_FORM_CHANGE_ANIM;
+            }
+            // else: invalid state (no steed in party and not already fused, or already stored)
+            // fall through to show "no effect"
+        }
+    }
+#endif // ALLOW_SAVE_CHANGES
 
     if (CanUseItemOnMonInParty(partyMenu->args->party, partyMenu->args->itemId, partyMenu->partyMonIndex, 0, HEAP_ID_PARTY_MENU) == TRUE) {
         Bag_TakeItem(partyMenu->args->bag, partyMenu->args->itemId, 1, HEAP_ID_PARTY_MENU);

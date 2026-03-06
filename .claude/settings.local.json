@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(wsl -e bash -c \"python3 -c \"\":*)",
+      "Bash(wsl -e bash -c \"cd /home/proati/git/hg-engine-bm && cat -A src/pokemon.c | sed -n ''933,935p''\")",
+      "Bash(wsl -e:*)"
+    ]
+  }
+}
