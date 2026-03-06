@@ -918,6 +918,30 @@ void BattleEndRevertFormChange(struct BattleSystem *bw)
         RevertFormChange(pp, monsno, form);
     }
 
+    // Give Gimmighoul Coins for defeating/capturing a wild Gimmighoul
+    if (!(BattleTypeGet(bw) & BATTLE_TYPE_TRAINER))
+    {
+        for (j = 0; j < BattleWorkPokeCountGet(bw, 1); j++)
+        {
+            pp = BattleWorkPokemonParamGet(bw, 1, j);
+            monsno = GetMonData(pp, MON_DATA_SPECIES, NULL);
+            if (monsno == SPECIES_GIMMIGHOUL || monsno == SPECIES_GIMMIGHOUL_ROAMING)
+            {
+                u16 coins;
+                u32 roll = BattleRand(bw) % 100;
+                if (roll < 40)
+                    coins = 1;
+                else if (roll < 80)
+                    coins = 2;
+                else if (roll < 99)
+                    coins = 3;
+                else
+                    coins = 5 + (BattleRand(bw) % 3);
+                Bag_AddItem((BAG_DATA *)bw->bag, ITEM_GIMMIGHOUL_COIN, coins, HEAPID_BATTLE_HEAP);
+            }
+        }
+    }
+
 #ifdef RESTORE_ITEMS_AT_BATTLE_END
     // grab newItems array for use later
     for (i = 0; i < BattleWorkPokeCountGet(bw, 0); i++)

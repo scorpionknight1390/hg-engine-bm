@@ -356,6 +356,16 @@ u16 GetMonEvolutionInternal(struct Party *party, struct PartyPokemon *pokemon, u
                     }
                 }
                 break;
+            case EVO_GIMMIGHOUL_COINS:
+                {
+                    BAG_DATA *bag = Sav2_Bag_get(SaveBlock2_get());
+                    if (Bag_GetQuantity(bag, ITEM_GIMMIGHOUL_COIN, HEAPID_MAIN_HEAP) >= evoTable[i].param)
+                    {
+                        target = evoTable[i].target & 0x7FF;
+                        *method_ret = EVO_GIMMIGHOUL_COINS;
+                    }
+                }
+                break;
             }
             if (target != SPECIES_NONE) {
                 break;

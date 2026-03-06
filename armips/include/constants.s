@@ -108,6 +108,7 @@
 .equ EVO_LEVEL_NATURE_LOW_KEY, 35
 .equ EVO_AMOUNT_OF_CRITICAL_HITS, 36
 .equ EVO_HURT_IN_BATTLE_AMOUNT, 37
+.equ EVO_GIMMIGHOUL_COINS, 38
 //EVO_DARK_SCROLL  // implemented through an item use forme-change-esque cut scene
 //EVO_WATER_SCROLL // implemented through an item use forme-change-esque cut scene
 

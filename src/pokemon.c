@@ -62,6 +62,7 @@ BOOL LONG_CALL GetOtherFormPic(MON_PIC *picdata, u16 mons_no, u8 dir, u8 col, u8
 void SetPartyPokemonParamsForEvoCutscene(struct PartyPokemon *mon, u16 *targetSpecies, BOOL clearEvoStructure)
 {
     u32 form = 0;
+    u16 oldSpecies = GetMonData(mon, MON_DATA_SPECIES, NULL);
     if (gEvolutionSceneOverride[0][0] == *targetSpecies)
         form = gEvolutionSceneOverride[0][1];
     else if (gEvolutionSceneOverride[1][0] == *targetSpecies)
@@ -71,6 +72,13 @@ void SetPartyPokemonParamsForEvoCutscene(struct PartyPokemon *mon, u16 *targetSp
         SetMonData(mon, MON_DATA_FORM, &form);
     if (clearEvoStructure)
         memset(gEvolutionSceneOverride, 0, sizeof(gEvolutionSceneOverride));
+    // Consume 999 Gimmighoul Coins when Gimmighoul evolves into Gholdengo
+    if ((oldSpecies == SPECIES_GIMMIGHOUL || oldSpecies == SPECIES_GIMMIGHOUL_ROAMING)
+     && *targetSpecies == SPECIES_GHOLDENGO)
+    {
+        BAG_DATA *bag = Sav2_Bag_get(SaveBlock2_get());
+        Bag_TakeItem(bag, ITEM_GIMMIGHOUL_COIN, 999, HEAPID_MAIN_HEAP);
+    }
 }
 
 /**
